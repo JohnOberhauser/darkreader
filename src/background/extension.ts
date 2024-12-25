@@ -261,6 +261,15 @@ export class Extension {
 
         UserStorage.settings.fetchNews && Newsmaker.subscribe();
         Extension.startBarrier!.resolve();
+        fetch('http://localhost:10001/darkreader/settings.json')
+            .then((response) => response.json())
+            .then((settings) => {
+                console.log('Received settings.json', settings);
+                Extension.changeSettings(settings);
+            })
+            .catch((error) => {
+                console.error('Failed to fetch settings.json:', error);
+            });
     }
 
     private static getMessengerAdapter(): ExtensionAdapter {
