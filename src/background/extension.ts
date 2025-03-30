@@ -230,6 +230,7 @@ export class Extension {
 
     static async start(): Promise<void> {
         Extension.init();
+        await TabManager.cleanState();
         await Promise.all([
             ConfigManager.load({local: true}),
             Extension.MV3syncSystemColorStateManager(null),
@@ -628,9 +629,9 @@ export class Extension {
 
     private static onAppToggle() {
         if (Extension.isExtensionSwitchedOn()) {
-            IconManager.setActive();
+            IconManager.setIcon({isActive: true, colorScheme: UserStorage.settings.theme.mode ? 'dark' : 'light'});
         } else {
-            IconManager.setInactive();
+            IconManager.setIcon({isActive: false, colorScheme: UserStorage.settings.theme.mode ? 'dark' : 'light'});
         }
 
         if (UserStorage.settings.changeBrowserTheme) {
@@ -648,6 +649,7 @@ export class Extension {
         TabManager.sendMessage(onlyUpdateActiveTab);
         Extension.saveUserSettings();
         Extension.reportChanges();
+        IconManager.setIcon({colorScheme: UserStorage.settings.theme.mode ? 'dark' : 'light'});
         Extension.stateManager!.saveState();
     }
 
@@ -691,6 +693,7 @@ export class Extension {
                             css: createCSSFilterStylesheet(theme, url, isTopFrame, ConfigManager.INVERSION_FIXES_RAW!, ConfigManager.INVERSION_FIXES_INDEX!),
                             detectDarkTheme,
                             detectorHints,
+                            theme,
                         },
                     };
                 }
@@ -702,6 +705,7 @@ export class Extension {
                                 css: createSVGFilterStylesheet(theme, url, isTopFrame, ConfigManager.INVERSION_FIXES_RAW!, ConfigManager.INVERSION_FIXES_INDEX!),
                                 detectDarkTheme,
                                 detectorHints,
+                                theme,
                             },
                         };
                     }
@@ -713,6 +717,7 @@ export class Extension {
                             svgReverseMatrix: getSVGReverseFilterMatrixValue(),
                             detectDarkTheme,
                             detectorHints,
+                            theme,
                         },
                     };
                 }
@@ -725,6 +730,7 @@ export class Extension {
                                 createStaticStylesheet(theme, url, isTopFrame, ConfigManager.STATIC_THEMES_RAW!, ConfigManager.STATIC_THEMES_INDEX!),
                             detectDarkTheme: settings.detectDarkTheme,
                             detectorHints,
+                            theme,
                         },
                     };
                 }

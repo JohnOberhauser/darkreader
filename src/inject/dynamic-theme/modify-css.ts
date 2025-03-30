@@ -6,7 +6,7 @@ import {clamp} from '../../utils/math';
 import {isCSSColorSchemePropSupported, isLayerRuleSupported} from '../../utils/platform';
 import {getMatches} from '../../utils/text';
 import {getAbsoluteURL} from '../../utils/url';
-import {readImageDetailCache, writeImageDetailCache} from '../cache';
+import {readImageDetailsCache, writeImageDetailsCache} from '../cache';
 import {logWarn, logInfo} from '../utils/log';
 
 import {cssURLRegex, getCSSURLValue, getCSSBaseBath} from './css-rules';
@@ -430,12 +430,7 @@ export function getBgImageModifier(
         const getURLModifier = (urlValue: string) => {
             if (!didTryLoadCache) {
                 didTryLoadCache = true;
-                const cache = readImageDetailCache();
-                if (cache) {
-                    Object.entries(cache).forEach(([url, details]) => {
-                        imageDetailsCache.set(url, details);
-                    });
-                }
+                readImageDetailsCache(imageDetailsCache);
             }
 
             let url = getCSSURLValue(urlValue);
@@ -453,22 +448,29 @@ export function getBgImageModifier(
                     return "url('')";
                 }
 
-                const selector = rule.selectorText;
-                if (selector && !scope.querySelector(selector)) {
-                    await new Promise<void>((resolve) => {
-                        if (imageSelectorQueue.has(selector)) {
-                            imageSelectorQueue.get(selector)!.push(resolve);
-                        } else {
-                            imageSelectorQueue.set(selector, [resolve]);
-                            imageSelectorValues.set(selector, urlValue);
-                        }
-                    });
+                let selector = rule.selectorText;
+                if (selector) {
+                    if (selector.includes('::before')) {
+                        selector = selector.replaceAll('::before', '');
+                    }
+                    if (selector.includes('::after')) {
+                        selector = selector.replaceAll('::after', '');
+                    }
+                    if (!scope.querySelector(selector)) {
+                        await new Promise<void>((resolve) => {
+                            if (imageSelectorQueue.has(selector)) {
+                                imageSelectorQueue.get(selector)!.push(resolve);
+                            } else {
+                                imageSelectorQueue.set(selector, [resolve]);
+                                imageSelectorValues.set(selector, urlValue);
+                            }
+                        });
+                    }
                 }
 
                 let imageDetails: ImageDetails | null = null;
                 if (imageDetailsCache.has(url)) {
                     imageDetails = imageDetailsCache.get(url)!;
-                    writeImageDetailCache(imageDetailsCache);
                 } else {
                     try {
                         if (!isBlobURLCheckResultReady()) {
@@ -484,6 +486,7 @@ export function getBgImageModifier(
                             awaitingForImageLoading.set(url, []);
                             imageDetails = await getImageDetails(url);
                             imageDetailsCache.set(url, imageDetails);
+                            writeImageDetailsCache(url, imageDetails);
                             awaitingForImageLoading.get(url)!.forEach((resolve) => resolve(imageDetails));
                             awaitingForImageLoading.delete(url);
                         }
